@@ -36,18 +36,20 @@ export type Assessment = {
 function evidenceScore(text: string) {
   const words = text.trim().split(/\s+/).filter(Boolean);
   const unique = new Set(words.map(word => word.toLowerCase())).size;
+  if (words.length < 5 || unique / words.length < .4) return 15;
   const numbers = /\d/.test(text) ? 10 : 0;
   const specifics = (text.match(/customer|cost|test|margin|price|interview|week|conversion|prototype|pilot|competitor|revenue|paid|risk|channel/gi) || []).length;
   return Math.min(91, 24 + Math.min(unique, 45) * .8 + numbers + Math.min(specifics, 7) * 3);
 }
 export function assessPitch(pitch: Pitch, answers: string[]): Assessment {
   const answerScores = sharks.map((_, i) => evidenceScore(answers[i] || ''));
+  const [business = 15, growth = 15, tech = 15, brutal = 15] = answerScores;
   const categories = [
-    { name: 'Problem', score: Math.round(evidenceScore(pitch.problem) * .45 + answerScores[3] * .55), advice: 'The willingness-to-pay assumption is still unproven. Run 10 customer interviews and ask for paid commitments—not compliments.' },
-    { name: 'Innovation', score: Math.round(evidenceScore(pitch.solution) * .4 + answerScores[2] * .6), advice: 'The differentiation is not yet defensible. Compare three alternatives and test one advantage customers actually value.' },
-    { name: 'Market', score: Math.round(evidenceScore(pitch.customers) * .35 + answerScores[1] * .65), advice: 'The initial customer segment and acquisition economics need evidence. Test one channel with a small budget and measure cost per paying customer.' },
-    { name: 'Business Model', score: Math.round(evidenceScore(pitch.model) * .35 + answerScores[0] * .65), advice: 'Unit economics are the biggest gap. Build a price/cost/margin model, include acquisition costs, and calculate break-even volume.' },
-    { name: 'Scalability', score: Math.round(answerScores[1] * .5 + answerScores[2] * .5), advice: 'Repeatable delivery is unproven. Run a small pilot, measure manual work per customer, and fix the largest bottleneck before expanding.' },
+    { name: 'Problem', score: Math.round(evidenceScore(pitch.problem) * .45 + brutal * .55), advice: 'The willingness-to-pay assumption is still unproven. Run 10 customer interviews and ask for paid commitments—not compliments.' },
+    { name: 'Innovation', score: Math.round(evidenceScore(pitch.solution) * .4 + tech * .6), advice: 'The differentiation is not yet defensible. Compare three alternatives and test one advantage customers actually value.' },
+    { name: 'Market', score: Math.round(evidenceScore(pitch.customers) * .35 + growth * .65), advice: 'The initial customer segment and acquisition economics need evidence. Test one channel with a small budget and measure cost per paying customer.' },
+    { name: 'Business Model', score: Math.round(evidenceScore(pitch.model) * .35 + business * .65), advice: 'Unit economics are the biggest gap. Build a price/cost/margin model, include acquisition costs, and calculate break-even volume.' },
+    { name: 'Scalability', score: Math.round(growth * .5 + tech * .5), advice: 'Repeatable delivery is unproven. Run a small pilot, measure manual work per customer, and fix the largest bottleneck before expanding.' },
   ];
   const sorted = [...categories].sort((a, b) => a.score - b.score);
   const weakest = sorted[0];
@@ -65,7 +67,10 @@ export function assessPitch(pitch: Pitch, answers: string[]): Assessment {
     'I’m out for now. Define a buildable MVP, name the hardest technical risk, and explain why your advantage is hard to copy.',
     'I’m out. Enthusiasm is not evidence. Show a paid-demand test and the result that would make you stop or pivot.',
   ];
-  const verdicts = sharks.map((shark, i) => ({ shark: shark.id, invests: answerScores[i] >= (i === 3 ? 75 : 67), reason: answerScores[i] >= (i === 3 ? 75 : 67) ? reasons[i] : objections[i] }));
+  const verdicts = sharks.map((shark, i) => {
+    const invests = (answerScores[i] ?? 15) >= (i === 3 ? 75 : 67);
+    return { shark: shark.id, invests, reason: (invests ? reasons[i] : objections[i]) ?? 'Validate your assumptions with a small paid pilot.' };
+  });
   return {
     overall, categories,
     strengths: [strongest ? `${strongest.name} is your strongest dimension (${strongest.score}/100). ${pitch.name} has a clearer starting point here than in the other areas.` : 'You have completed the panel.', answerScores.some(score => score >= 67) ? 'Your strongest answers include concrete detail rather than relying only on the vision.' : 'You have articulated an initial problem, solution, and target segment that can now be tested.'],

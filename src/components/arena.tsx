@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowRight, ArrowUpRight, ArrowLeft, BriefcaseBusiness, TrendingUp, Cpu, Flame, Check, CheckCheck, CircleDollarSign, Lightbulb, LoaderCircle, RotateCcw, Sparkles, ShieldCheck, Timer, X, Menu, AudioLines, Target, ChevronRight } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, BriefcaseBusiness, TrendingUp, Cpu, Flame, Check, CheckCheck, CircleDollarSign, Lightbulb, LoaderCircle, RotateCcw, Sparkles, ShieldCheck, Timer, X, Menu, AudioLines, Target, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
