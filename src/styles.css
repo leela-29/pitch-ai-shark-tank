@@ -46,6 +46,12 @@
 .header-nav { display: flex; align-items: center; gap: 18px; margin-left: auto; }
 .header-nav button { color: var(--muted-foreground); font-size: 12px; }
 .demo-badge { display: flex; align-items: center; gap: 7px; color: var(--primary); font-size: 9px; font-weight: 600; letter-spacing: 1px; border: 1px solid color-mix(in oklab,var(--primary) 24%,transparent); background: color-mix(in oklab,var(--primary) 5%,transparent); padding: 7px 10px; border-radius: 4px; }
+.demo-badge.ai-service-status.connected { color: #7ee8b2; border-color: color-mix(in oklab,#7ee8b2 35%,transparent); background: color-mix(in oklab,#7ee8b2 7%,transparent); }
+.demo-badge.ai-service-status.error { color: #ff8f8f; border-color: color-mix(in oklab,#ff8f8f 35%,transparent); background: color-mix(in oklab,#ff8f8f 7%,transparent); }
+.demo-badge.ai-service-status.checking { color: var(--foreground); }
+.demo-badge.ai-service-status.error>span { background: #ff8f8f; box-shadow: 0 0 9px color-mix(in oklab,#ff8f8f 40%,transparent); }
+.demo-badge.ai-service-status.connected>span { background: #7ee8b2; box-shadow: 0 0 9px color-mix(in oklab,#7ee8b2 40%,transparent); }
+.ai-test-button { height: 30px; padding: 0 10px; font-size: 10px; }
 .demo-badge>span,.live-dot { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 9px color-mix(in oklab,var(--primary) 40%,transparent); flex-shrink: 0; }
 .arena-quiet-button { background: var(--card); color: var(--foreground); border: 1px solid var(--border); }
 .arena-quiet-button:hover { background: var(--accent); border-color: var(--muted-foreground); }
