@@ -9,6 +9,7 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 
-- Keep the pitch experience in a client-side flow on the index route; the MVP must run without accounts, persistence, or external services.
-- Isolate typed simulation logic in a browser-safe module with a provider interface; future LLM integration should replace the provider without changing the screens.
+- Keep the pitch experience in a client-side flow on the index route; it must run without accounts or persistence.
+- Use Gemini through TanStack Start server functions for production questions and assessments. Keep API credentials server-only; do not silently fall back to rule-based scoring. The local mock provider is for tests only.
+- Keep shared pitch, question, and assessment types in browser-safe modules; validate all model output before returning it to the screens.
 - Define all visual roles and reusable arena styling in src/styles.css; UI controls use shadcn components.

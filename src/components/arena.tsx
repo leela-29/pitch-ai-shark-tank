@@ -3,10 +3,12 @@ import { ArrowRight, ArrowUpRight, BriefcaseBusiness, TrendingUp, Cpu, Flame, Ch
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { emptyPitch, examplePitch, mockArenaProvider, sharks, type Pitch, type Question, type Assessment, type SharkId } from '@/lib/arena-engine';
+import { getAiAssessment, getAiQuestions, testAiConnection } from '@/lib/arena-ai.functions';
+import { emptyPitch, examplePitch, sharks, type Pitch, type Question, type Assessment, type SharkId } from '@/lib/arena-engine';
 
 const sharkIcons = { business: BriefcaseBusiness, growth: TrendingUp, tech: Cpu, brutal: Flame };
 type Screen = 'home' | 'pitch' | 'panel' | 'results';
+type AiConnectionStatus = 'untested' | 'checking' | 'connected' | 'error';
 
 function Fin({ className = '' }: { className?: string }) {
   return <svg className={className} viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M6 36C20 30 20 12 35 7C30 21 33 27 42 36H6Z" fill="currentColor"/><path d="M5 41H43" stroke="currentColor" strokeWidth="3"/></svg>;
@@ -30,6 +32,8 @@ export function Arena() {
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [menu, setMenu] = useState(false);
   const [improving, setImproving] = useState(false);
+  const [aiConnectionStatus, setAiConnectionStatus] = useState<AiConnectionStatus>('untested');
+  const [aiConnectionError, setAiConnectionError] = useState('');
   const mainRef = useRef<HTMLElement>(null);
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -38,15 +42,27 @@ export function Arena() {
 
   function go(next: Screen) { setScreen(next); setError(''); setMenu(false); }
   function reset() { setPitch(emptyPitch); setAnswers([]); setAssessment(null); setImproving(false); go('pitch'); }
+  async function testAiService() {
+    setAiConnectionStatus('checking');
+    setAiConnectionError('');
+    try {
+      await testAiConnection();
+      setAiConnectionStatus('connected');
+    } catch (cause) {
+      setAiConnectionStatus('error');
+      setAiConnectionError(errorMessage(cause, 'Gemini connection test failed.'));
+    }
+  }
   async function start(event: FormEvent) {
     event.preventDefault();
     if (Object.values(pitch).some(value => value.trim().length < 3)) { setError('Give each field a little more detail—at least 3 characters.'); return; }
     setLoading(true); setError('');
     try {
-      const generated = await mockArenaProvider.questions(pitch);
-      await new Promise(resolve => setTimeout(resolve, 650));
+      const generated = await getAiQuestions({ data: pitch });
+      setAiConnectionStatus('connected');
+      setAiConnectionError('');
       setQuestions(generated); setRound(0); setAnswers([]); setAnswer(''); setHint(false); go('panel');
-    } catch { setError('The panel couldn’t be prepared. Your pitch is safe here—please try again.'); }
+    } catch (cause) { setAiConnectionStatus('error'); setAiConnectionError(errorMessage(cause, 'The AI panel couldn’t be prepared. Please try again.')); setError(errorMessage(cause, 'The AI panel couldn’t be prepared. Please try again.')); }
     finally { setLoading(false); }
   }
   async function submit(event: FormEvent) {
@@ -59,11 +75,12 @@ export function Arena() {
         await new Promise(resolve => setTimeout(resolve, 500));
         setAnswers(nextAnswers); setRound(value => value + 1); setAnswer(''); setHint(false);
       } else {
-        const result = await mockArenaProvider.assessment(pitch, nextAnswers);
-        await new Promise(resolve => setTimeout(resolve, 1200));
+        const result = await getAiAssessment({ data: { pitch, answers: nextAnswers } });
+        setAiConnectionStatus('connected');
+        setAiConnectionError('');
         setAnswers(nextAnswers); setAssessment(result); go('results');
       }
-    } catch { setError('The panel hit a snag. Your answer is still here—please retry.'); }
+    } catch (cause) { setAiConnectionStatus('error'); setAiConnectionError(errorMessage(cause, 'The AI panel hit a snag. Your answer is still here—please retry.')); setError(errorMessage(cause, 'The AI panel hit a snag. Your answer is still here—please retry.')); }
     finally { setLoading(false); }
   }
   const currentQuestion = questions[round];
@@ -75,7 +92,12 @@ export function Arena() {
       <nav className={`header-nav ${menu ? 'is-open' : ''}`} aria-label="Main navigation">
         <Button variant="ghost" onClick={() => { go('home'); setTimeout(() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' }), 30); }}>How it works</Button>
         <Button variant="ghost" onClick={() => { go('home'); setTimeout(() => document.getElementById('the-sharks')?.scrollIntoView({ behavior: 'smooth' }), 30); }}>Meet the sharks</Button>
-        <span className="demo-badge"><span/> SIMULATION MODE</span>
+        <span className={`demo-badge ai-service-status ${aiConnectionStatus}`} role="status" title={aiConnectionError || undefined}>
+          <span/>{aiConnectionStatus === 'connected' ? 'GEMINI CONNECTED' : aiConnectionStatus === 'checking' ? 'CHECKING GEMINI' : aiConnectionStatus === 'error' ? 'GEMINI ERROR' : 'GEMINI NOT TESTED'}
+        </span>
+        <Button variant="ghost" className="ai-test-button" onClick={testAiService} disabled={aiConnectionStatus === 'checking'} aria-label="Test Gemini AI connection">
+          {aiConnectionStatus === 'checking' ? <><LoaderCircle className="spin"/> Testing…</> : 'Test AI'}
+        </Button>
       </nav>
       <Button variant="quiet" className="header-enter" onClick={() => go('pitch')}>Enter the Tank <ArrowUpRight/></Button>
       <Button variant="ghost" size="icon" className="mobile-menu" onClick={() => setMenu(!menu)} aria-label={menu ? 'Close navigation' : 'Open navigation'} aria-expanded={menu}>{menu ? <X/> : <Menu/>}</Button>
@@ -116,7 +138,7 @@ export function Arena() {
           <Field label="Who are your target customers?" number="04" htmlFor="customers"><Textarea id="customers" required maxLength={1500} value={pitch.customers} onChange={event => setPitch({ ...pitch, customers: event.target.value })} placeholder="Be specific. ‘Everyone’ is not a target market."/></Field>
           <Field label="How will you make money?" number="05" htmlFor="model"><Textarea id="model" required maxLength={1500} value={pitch.model} onChange={event => setPitch({ ...pitch, model: event.target.value })} placeholder="Pricing, revenue streams, costs—give us the business model."/></Field>
           {error && <p className="form-error" role="alert">{error}</p>}
-          <div className="form-bottom"><span><ShieldCheck/> Your pitch stays in this session.</span><Button variant="arena" type="submit" disabled={loading}>{loading ? <><LoaderCircle className="spin"/> Assembling the panel…</> : <>Face the sharks <ArrowRight/></>}</Button></div>
+          <div className="form-bottom"><span><ShieldCheck/> Your pitch and answers are sent to Google Gemini for AI feedback.</span><Button variant="arena" type="submit" disabled={loading}>{loading ? <><LoaderCircle className="spin"/> Assembling the panel…</> : <>Face the sharks <ArrowRight/></>}</Button></div>
         </form>
       </section>}
 
@@ -142,8 +164,12 @@ export function Arena() {
         <div className="results-actions"><Button variant="quiet" onClick={reset}><RotateCcw/> Pitch Again</Button><Button variant="arena" onClick={() => { setImproving(true); go('pitch'); }}><Sparkles/> Improve My Pitch <ArrowRight/></Button></div>
       </section>}
     </main>
-    <footer className="arena-footer"><div className="footer-brand"><Fin/> SHARK ARENA <span>Built for the bold.</span></div><p>Scores, investor feedback, and offers are simulated. Not financial advice.</p><span className="footer-challenge">PROMPTWARS × THE PROMPT ARENA <ArrowUpRight/></span></footer>
+    <footer className="arena-footer"><div className="footer-brand"><Fin/> SHARK ARENA <span>Built for the bold.</span></div><p>AI-generated feedback and hypothetical offers are not real investment decisions or financial advice. Pitch content is processed by Google Gemini.</p><span className="footer-challenge">PROMPTWARS × THE PROMPT ARENA <ArrowUpRight/></span></footer>
   </div>;
+}
+
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 function FlowSteps({ active }: { active: number }) {
